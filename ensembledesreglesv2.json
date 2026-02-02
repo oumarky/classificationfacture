@@ -1,0 +1,410 @@
+
+
+
+{
+    "rules_version": "v1.2",
+    "description": "",
+    "decision_model": {
+      "first_check_status": "a_corriger",
+      "second_check_status": "rejetee",
+      "verification_pass": {
+        "first_if": { "field": "date_verification", "op": "is_null" },
+        "second_if": { "field": "date_verification", "op": "is_not_null" }
+      },
+      "final_status_priority": ["rejetee", "a_corriger", "validee"]
+    },
+    "normalization": {
+      "sex_allowed": ["M", "F", "male", "female"],
+      "sex_map": { "H": "M", "Homme": "M", "Femme": "F" },
+      "mode_sortie_evac_values": ["Evacué", "EVACUE", "EVACUEE", "Evacue", "EVACUÉ"]
+    },
+    "rules": [
+      {
+        "code": "R-FORM-001",
+        "name": "Complétude des données individuelles",
+        "active": true,
+        "anomaly_type": "Forme",
+        "severity": "MAJEURE",
+        "description": "Champs obligatoires manquants (identité, administratif, date).",
+        "required_fields": [
+          "nom_patient",
+          "age_patient",
+          "sex",
+          "visit_date",
+          "registre_number",
+          "consultation_type",
+          "type_prestation",
+          "id_prescripteur",
+          "id_gerant"
+        ],
+        "conditions": {
+          "any": [
+            { "field": "nom_patient", "op": "is_null_or_empty" },
+            { "field": "id_prescripteur", "op": "is_null_or_empty" },
+            { "field": "id_gerant", "op": "is_null_or_empty" },
+            { "field": "age_patient", "op": "is_null" },
+            { "field": "sex", "op": "is_null_or_empty" },
+            { "field": "visit_date", "op": "is_null" },
+            { "field": "registre_number", "op": "is_null_or_empty" },
+            { "field": "consultation_type", "op": "is_null_or_empty" },
+            { "field": "type_prestation", "op": "is_null_or_empty" }
+          ]
+        },
+        "user_message_template": "Absence de données obligatoires. Corriger les champs manquants.",
+        "action_expected": "Renseigner les champs obligatoires (patient, prescripteur, gérant, âge, sexe, date visite, registre, type consultation, type prestation).",
+        "decision_policy": "inherit",
+        "status_first_check": "a_corriger",
+        "status_second_check": "rejetee",
+        "features": {
+          "rule_flag": "r_completude_manquante",
+          "extra": ["nb_champs_manquants"]
+        }
+      },
+  
+      {
+        "code": "R-FORM-002",
+        "name": "Validité âge",
+        "active": true,
+        "anomaly_type": "Forme",
+        "severity": "MAJEURE",
+        "description": "Âge manquant ou hors intervalle acceptable.",
+        "required_fields": ["age_patient"],
+        "parameters": { "min_age": 0, "max_age": 120 },
+        "conditions": {
+          "any": [
+            { "field": "age_patient", "op": "is_null" },
+            { "field": "age_patient", "op": "lte", "value": 0 },
+            { "field": "age_patient", "op": "gt", "value": 120 }
+          ]
+        },
+        "user_message_template": "Âge invalide (manquant ou hors intervalle).",
+        "action_expected": "Corriger l’âge du patient.",
+        "decision_policy": "inherit",
+        "status_first_check": "a_corriger",
+        "status_second_check": "rejetee",
+        "features": { "rule_flag": "r_age_invalid", "extra": [] }
+      },
+  
+      {
+        "code": "R-FORM-003",
+        "name": "Validité sexe",
+        "active": true,
+        "anomaly_type": "Forme",
+        "severity": "MAJEURE",
+        "description": "Sexe manquant ou valeur non reconnue.",
+        "required_fields": ["sex"],
+        "conditions": {
+          "any": [
+            { "field": "sex", "op": "is_null_or_empty" },
+            { "field": "sex", "op": "not_in", "value": ["M", "F", "male", "female"] }
+          ]
+        },
+        "user_message_template": "Sexe invalide (valeur non reconnue ou manquante).",
+        "action_expected": "Corriger le sexe (M/F).",
+        "decision_policy": "inherit",
+        "status_first_check": "a_corriger",
+        "status_second_check": "rejetee",
+        "features": { "rule_flag": "r_sex_invalid", "extra": [] }
+      },
+  
+      {
+        "code": "R-DATE-001",
+        "name": "Sortie avant entrée",
+        "active": true,
+        "anomaly_type": "Forme",
+        "severity": "CRITIQUE",
+        "description": "date_sortie < date_entree.",
+        "required_fields": ["date_entree", "date_sortie"],
+        "conditions": {
+          "all": [
+            { "field": "date_entree", "op": "is_not_null" },
+            { "field": "date_sortie", "op": "is_not_null" },
+            { "field": "date_sortie", "op": "lt_field", "value": "date_entree" }
+          ]
+        },
+        "user_message_template": "Incohérence: date de sortie antérieure à la date d’entrée.",
+        "action_expected": "Corriger les dates d’entrée/sortie.",
+        "decision_policy": "inherit",
+        "status_first_check": "a_corriger",
+        "status_second_check": "rejetee",
+        "features": { "rule_flag": "r_date_sortie_before_entree", "extra": ["delta_entree_sortie"] }
+      },
+  
+      {
+        "code": "R-DATE-002",
+        "name": "Visite hors séjour",
+        "active": true,
+        "anomaly_type": "Forme",
+        "severity": "MAJEURE",
+        "description": "visit_date en dehors [date_entree, date_sortie] si ces dates existent.",
+        "required_fields": ["visit_date", "date_entree", "date_sortie"],
+        "conditions": {
+          "all": [
+            { "field": "visit_date", "op": "is_not_null" },
+            { "field": "date_entree", "op": "is_not_null" },
+            { "field": "date_sortie", "op": "is_not_null" },
+            {
+              "any": [
+                { "field": "visit_date", "op": "lt_field", "value": "date_entree" },
+                { "field": "visit_date", "op": "gt_field", "value": "date_sortie" }
+              ]
+            }
+          ]
+        },
+        "user_message_template": "La date de visite est hors de la période d’entrée/sortie.",
+        "action_expected": "Corriger visit_date ou les dates d’entrée/sortie.",
+        "decision_policy": "inherit",
+        "status_first_check": "a_corriger",
+        "status_second_check": "rejetee",
+        "features": { "rule_flag": "r_visit_outside_stay", "extra": ["delta_visit_vs_entree", "delta_sortie_vs_visit"] }
+      },
+  
+      {
+        "code": "R-DATE-003",
+        "name": "Nombre de jours incohérent avec les dates",
+        "active": true,
+        "anomaly_type": "Forme",
+        "severity": "MAJEURE",
+        "description": "Si date_entree/date_sortie existent, vérifier la cohérence avec nbre_jours.",
+        "required_fields": ["nbre_jours", "date_entree", "date_sortie"],
+        "parameters": { "tolerance_days": 1 },
+        "conditions": {
+          "all": [
+            { "field": "nbre_jours", "op": "is_not_null" },
+            { "field": "date_entree", "op": "is_not_null" },
+            { "field": "date_sortie", "op": "is_not_null" },
+            { "field": "nbre_jours", "op": "lte", "value": 0, "negate": true },
+            {
+              "field": "ABS(((date_sortie-date_entree)+1) - nbre_jours)",
+              "op": "gt",
+              "value": 1,
+              "expr": true
+            }
+          ]
+        },
+        "user_message_template": "Incohérence: nbre_jours ne correspond pas aux dates d’entrée/sortie.",
+        "action_expected": "Corriger nbre_jours et/ou date_entree/date_sortie.",
+        "decision_policy": "inherit",
+        "status_first_check": "a_corriger",
+        "status_second_check": "rejetee",
+        "features": { "rule_flag": "r_duree_incoherente", "extra": ["delta_duree", "stay_days_from_dates"] }
+      },
+  
+      {
+        "code": "R-QTE-001",
+        "name": "Quantités négatives",
+        "active": true,
+        "anomaly_type": "Fond",
+        "severity": "CRITIQUE",
+        "description": "Une des quantités totales est négative.",
+        "required_fields": ["quantite_total_prod", "quantite_total_act", "quantite_total_ex"],
+        "conditions": {
+          "any": [
+            { "field": "quantite_total_prod", "op": "lt", "value": 0 },
+            { "field": "quantite_total_act", "op": "lt", "value": 0 },
+            { "field": "quantite_total_ex", "op": "lt", "value": 0 }
+          ]
+        },
+        "user_message_template": "Quantités négatives détectées (produits/actes/examens).",
+        "action_expected": "Corriger les quantités totales.",
+        "decision_policy": "inherit",
+        "status_first_check": "a_corriger",
+        "status_second_check": "rejetee",
+        "features": { "rule_flag": "r_qte_negative", "extra": [] }
+      },
+  
+      {
+        "code": "R-QTE-002",
+        "name": "Coûts négatifs",
+        "active": true,
+        "anomaly_type": "Fond",
+        "severity": "CRITIQUE",
+        "description": "Un des coûts totaux est négatif.",
+        "required_fields": ["cout_total_prod", "cout_total_act", "cout_total_ex", "cout_mise_en_observation", "cout_evacuation"],
+        "conditions": {
+          "any": [
+            { "field": "cout_total_prod", "op": "lt", "value": 0 },
+            { "field": "cout_total_act", "op": "lt", "value": 0 },
+            { "field": "cout_total_ex", "op": "lt", "value": 0 },
+            { "field": "cout_mise_en_observation", "op": "lt", "value": 0 },
+            { "field": "cout_evacuation", "op": "lt", "value": 0 }
+          ]
+        },
+        "user_message_template": "Coûts négatifs détectés.",
+        "action_expected": "Corriger les coûts saisis.",
+        "decision_policy": "inherit",
+        "status_first_check": "a_corriger",
+        "status_second_check": "rejetee",
+        "features": { "rule_flag": "r_cout_negative", "extra": [] }
+      },
+  
+      {
+        "code": "R-QTE-003",
+        "name": "Coût sans quantité",
+        "active": true,
+        "anomaly_type": "Fond",
+        "severity": "MAJEURE",
+        "description": "Coût >0 alors que quantité correspondante est nulle ou manquante.",
+        "required_fields": [
+          "cout_total_prod", "quantite_total_prod",
+          "cout_total_act", "quantite_total_act",
+          "cout_total_ex", "quantite_total_ex"
+        ],
+        "conditions": {
+          "any": [
+            {
+              "all": [
+                { "field": "cout_total_prod", "op": "gt", "value": 0 },
+                { "field": "quantite_total_prod", "op": "is_null_or_lte", "value": 0 }
+              ]
+            },
+            {
+              "all": [
+                { "field": "cout_total_act", "op": "gt", "value": 0 },
+                { "field": "quantite_total_act", "op": "is_null_or_lte", "value": 0 }
+              ]
+            },
+            {
+              "all": [
+                { "field": "cout_total_ex", "op": "gt", "value": 0 },
+                { "field": "quantite_total_ex", "op": "is_null_or_lte", "value": 0 }
+              ]
+            }
+          ]
+        },
+        "user_message_template": "Coût saisi sans quantité correspondante (produits/actes/examens).",
+        "action_expected": "Renseigner la quantité ou corriger le coût.",
+        "decision_policy": "inherit",
+        "status_first_check": "a_corriger",
+        "status_second_check": "rejetee",
+        "features": {
+          "rule_flag": "r_cout_sans_qte",
+          "extra": ["r_cost_without_qty_prod", "r_cost_without_qty_act", "r_cost_without_qty_ex"]
+        }
+      },
+  
+      {
+        "code": "R-EVAC-001",
+        "name": "Évacuation incohérente (mode vs coût)",
+        "active": true,
+        "anomaly_type": "Fond",
+        "severity": "MAJEURE",
+        "description": "mode_sortie Evacué sans coût, ou coût d’évacuation sans mode évacué.",
+        "required_fields": ["mode_sortie", "cout_evacuation"],
+        "conditions": {
+          "any": [
+            {
+              "all": [
+                { "field": "cout_evacuation", "op": "gt", "value": 0 },
+                { "field": "mode_sortie", "op": "is_null_or_empty" }
+              ]
+            },
+            {
+              "all": [
+                { "field": "mode_sortie", "op": "in", "value": ["Evacué", "EVACUE", "EVACUEE", "Evacue", "EVACUÉ"] },
+                { "field": "cout_evacuation", "op": "is_null_or_lte", "value": 0 }
+              ]
+            }
+          ]
+        },
+        "user_message_template": "Incohérence évacuation: mode_sortie et cout_evacuation non cohérents.",
+        "action_expected": "Corriger mode_sortie ou cout_evacuation (mettre à 0 si non évacué).",
+        "decision_policy": "inherit",
+        "status_first_check": "a_corriger",
+        "status_second_check": "rejetee",
+        "features": { "rule_flag": "r_incoherence_evacuation", "extra": ["r_evac_cost_without_mode", "r_evac_mode_without_cost"] }
+      },
+  
+      {
+        "code": "R-EVAC-002",
+        "name": "Montant évacuation anormal (seuil)",
+        "active": true,
+        "anomaly_type": "Fond",
+        "severity": "CRITIQUE",
+        "description": "cout_evacuation >= 120000 FCFA (seuil métier).",
+        "required_fields": ["cout_evacuation"],
+        "parameters": { "seuil_evacuation": 120000 },
+        "conditions": {
+          "all": [
+            { "field": "cout_evacuation", "op": "is_not_null" },
+            { "field": "cout_evacuation", "op": "gte", "value": 120000 }
+          ]
+        },
+        "user_message_template": "Montant d'évacuation anormal (>= {seuil_evacuation} FCFA).",
+        "action_expected": "Corriger le montant ou justifier via workflow d’exception si applicable.",
+        "decision_policy": "inherit",
+        "status_first_check": "a_corriger",
+        "status_second_check": "rejetee",
+        "features": { "rule_flag": "r_montant_evacuation_anormal", "extra": ["cout_evacuation"] }
+      },
+  
+      {
+        "code": "R-OBS-001",
+        "name": "Observation incohérente (coût/jours/type)",
+        "active": true,
+        "anomaly_type": "Fond",
+        "severity": "MAJEURE",
+        "description": "Si coût observation >0 alors nbre_jours>0 et type_observation renseigné.",
+        "required_fields": ["type_observation", "nbre_jours", "cout_mise_en_observation"],
+        "conditions": {
+          "any": [
+            {
+              "all": [
+                { "field": "cout_mise_en_observation", "op": "gt", "value": 0 },
+                { "field": "nbre_jours", "op": "is_null_or_lte", "value": 0 }
+              ]
+            },
+            {
+              "all": [
+                { "field": "cout_mise_en_observation", "op": "gt", "value": 0 },
+                { "field": "type_observation", "op": "is_null_or_empty" }
+              ]
+            }
+          ]
+        },
+        "user_message_template": "Incohérence mise en observation: coût/jours/type_observation non cohérents.",
+        "action_expected": "Renseigner type_observation et nbre_jours, ou corriger le coût si observation non réalisée.",
+        "decision_policy": "inherit",
+        "status_first_check": "a_corriger",
+        "status_second_check": "rejetee",
+        "features": { "rule_flag": "r_incoherence_observation", "extra": ["r_obs_cost_without_days", "r_obs_type_missing_with_cost"] }
+      },
+  
+      {
+        "code": "R-FOND-005",
+        "name": "Prestation enfant (<9 ans) - version dataframe",
+        "active": true,
+        "anomaly_type": "Fond",
+        "severity": "CRITIQUE",
+        "description": "En l’absence de la colonne 'prestation', on applique une approximation via type_prestation (liste paramétrable).",
+        "required_fields": ["age_patient", "type_prestation"],
+        "parameters": {
+          "age_enfant_max": 9,
+          "types_prestation_interdits_enfant": [
+            "accouchement et intervention obstétricale",
+            "soins pendant la grossesse",
+            "planification familiale",
+            "dépistage + traitement des lésions précancéreuses"
+          ]
+        },
+        "conditions": {
+          "all": [
+            { "field": "age_patient", "op": "lt", "value": 9 },
+            { "field": "type_prestation", "op": "in", "value": [
+              "accouchement et intervention obstétricale",
+              "soins pendant la grossesse",
+              "planification familiale",
+              "dépistage + traitement des lésions précancéreuses"
+            ]}
+          ]
+        },
+        "user_message_template": "Bien et service non éligible pour la catégorie de patient (enfant).",
+        "action_expected": "Corriger le type_prestation ou vérifier la saisie de l’âge.",
+        "decision_policy": "inherit",
+        "status_first_check": "a_corriger",
+        "status_second_check": "rejetee",
+        "features": { "rule_flag": "r_prestation_enfant_non_eligible", "extra": ["is_enfant_u9"] }
+      }
+    ]
+  }
+  

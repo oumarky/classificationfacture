@@ -1,0 +1,20 @@
+===== RANDOM FOREST =====
+              precision    recall  f1-score   support
+
+           0       0.98      0.96      0.97      3000
+           1       0.96      0.98      0.97      3000
+
+    accuracy                           0.97      6000
+   macro avg       0.97      0.97      0.97      6000
+weighted avg       0.97      0.97      0.97      6000
+
+
+===== RÉGRESSION LOGISTIQUE =====
+              precision    recall  f1-score   support
+
+           0       0.96      0.84      0.90      3000
+           1       0.86      0.96      0.91      3000
+
+    accuracy                           0.90      6000
+   macro avg       0.91      0.90      0.90      6000
+weighted avg       0.91      0.90      0.90      6000
