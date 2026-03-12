@@ -1,0 +1,18 @@
+observations_verification,count
+Quantité anormale d’acte Réduire la quantité à 1,9495
+RAS,7330
+Quantité anormale d’acte Réduire la quantité à 1; Quantité anormale d’acte Réduire la quantité à 1,255
+Bien et service non éligible pour la catégorie de patient,170
+L’acte ne correspond pas avec le sexe du patient,38
+Quantité anormale d’acte Réduire la quantité à 1; Quantité anormale d’acte Réduire la quantité à 1; Quantité anormale d’acte Réduire la quantité à 1,16
+Absence de: registre_number,6
+Bien et service non éligible pour la catégorie de patient; Quantité anormale d’acte Réduire la quantité à 1,4
+Montant d'évacuation anormal,4
+L’acte ne correspond pas avec le sexe du patient; Bien et service non éligible pour la catégorie de patient,3
+L’acte ne correspond pas avec le sexe du patient; Quantité anormale d’acte Réduire la quantité à 1,3
+Prestation non éligible pour la Planification familiale avec type de prestation Sayana Press,1
+Chevauchement détecté entre soin_intensif (2025-08-27 au 2025-08-28) et salle_standard (2025-08-26 au 2025-08-29),1
+Facture saisie avant date d'entrée; Date de sortie est avant la date d’entrée,1
+Absence de: nom_patient,1
+Quantité anormale d’acte Réduire la quantité à 1; Quantité anormale d’acte Réduire la quantité à 1; Quantité anormale d’acte Réduire la quantité à 1; Quantité anormale d’acte Réduire la quantité à 1,1
+Bien et service non éligible pour la catégorie de patient; Quantité anormale d’acte Réduire la quantité à 1; Quantité anormale d’acte Réduire la quantité à 1,1
