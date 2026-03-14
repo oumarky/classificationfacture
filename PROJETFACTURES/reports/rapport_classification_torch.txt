@@ -1,0 +1,12 @@
+===== RAPPORT DE CLASSIFICATION (PyTorch M2 Pro) =====
+
+              precision    recall  f1-score   support
+
+           0       0.00      0.00      0.00       250
+           1       0.50      1.00      0.67       250
+
+    accuracy                           0.50       500
+   macro avg       0.25      0.50      0.33       500
+weighted avg       0.25      0.50      0.33       500
+
+F1-score final : 0.6667
