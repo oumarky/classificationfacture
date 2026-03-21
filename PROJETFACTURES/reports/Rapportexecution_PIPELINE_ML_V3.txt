@@ -1,0 +1,234 @@
+======================================================================
+   PIPELINE ML V3 — VÉRIFICATION FACTURES (Features brutes + flags)
+======================================================================
+
+[ÉTAPE 1/7] Analyse exploratoire des données
+
+  ── Dimensions ──────────────────────────────────────
+  ➤ Lignes              : 1433
+  ➤ Colonnes totales    : 97
+  ➤ Classe 'validee'    : 600 (41.9%)
+  ➤ Classe 'a_corriger' : 833 (58.1%)
+
+  ── Inventaire des colonnes ─────────────────────────
+  ➤ Flags complétude    : 10 colonnes
+  ➤ Flags validité      : 6 colonnes
+  ➤ Flags contrôles     : 9 colonnes
+  ➤ Flags existence     : 9 colonnes
+  ➤ Valeurs brutes num. : 12 colonnes
+
+  ── Valeurs manquantes (colonnes critiques) ─────────
+    quantite_total_act                  0 valeurs manquantes
+    cout_total_act                      0 valeurs manquantes
+    age_patient_calculated              0 valeurs manquantes
+    date_entree                         1286 valeurs manquantes
+    date_sortie                         1285 valeurs manquantes
+    quantite_total_ex                   1202 valeurs manquantes
+
+  ── Corrélations features brutes vs target ──────────
+    qte_act > 1 (flag)                  +0.5926  ██████████████
+    quantite_total_act                  +0.4037  ██████████
+    distance_village                    -0.1859  ████
+    cout_total_act                      +0.1678  ████
+    cout_total_prod                     +0.1518  ███
+    age_patient_calculated              -0.1170  ██
+    quantite_total_prod                 +0.0998  ██
+
+  ── Analyse plafond théorique ───────────────────────
+  Avant (flags binaires seuls)  : 64.2% (597 paires de conflits)
+  Après (+ valeurs brutes)      : 100%  (0 conflit irréductible)
+  → Les valeurs brutes apportent le signal manquant !
+  → Notamment quantite_total_act (corr=+0.40) : la règle
+    'Quantité anormale' se déclenche quand qte_act > 1
+    ce que les flags binaires ne capturaient pas explicitement.
+
+[ÉTAPE 2/7] Feature Engineering
+  ➤ Features originales retenues : 6
+  ➤ Features brutes nouvelles    : 16
+  ➤ Total features               : 22
+
+  Corrélations avec target (|corr| décroissant) :
+    qte_act_gt1                              0.5926  █████████████████ ★ TOP
+    qte_act_log                              0.5476  ████████████████ ★ TOP
+    qte_act_raw                              0.4037  ████████████ ★ TOP
+    cout_total_log                           0.3306  █████████ 
+    quantite_total_ex_exists                 0.2066  ██████ 
+    delai_creation                           0.1919  █████ 
+    dist_village                             0.1859  █████ 
+    ratio_act_prod                           0.1800  █████ 
+    cout_act_raw                             0.1678  █████ 
+    age_group                                0.1555  ████ 
+    cout_prod_raw                            0.1518  ████ 
+    consultation_type                        0.1497  ████ 
+    age_raw                                  0.1170  ███ 
+    qte_prod_raw                             0.0998  ██ 
+    cout_par_acte                            0.0780  ██ 
+    date_sortie_is_valid                     0.0742  ██ 
+    date_entree_is_valid                     0.0725  ██ 
+    nbre_jours_raw                           0.0635  █ 
+    is_mobile                                0.0507  █ 
+    verifierHopitalisation_PF_Ambulatoires   0.0431  █ 
+    type_prestation                          0.0329   
+    sex_enc                                  0.0179   
+
+[ÉTAPE 3/7] Split Train / Validation / Test (60% / 20% / 20%)
+  ➤ Train      :  859 lignes | a_corriger=499 (58.1%)
+  ➤ Validation :  287 lignes | a_corriger=167 (58.2%)
+  ➤ Test       :  287 lignes | a_corriger=167 (58.2%)
+
+[ÉTAPE 4/7] Définition et entraînement des modèles
+  ✓ GradientBoosting       entraîné sur 859 lignes
+  ✓ RandomForest           entraîné sur 859 lignes
+  ✓ KNN                    entraîné sur 859 lignes
+  ✓ LogisticReg            entraîné sur 859 lignes
+
+[ÉTAPE 5/7] Optimisation du seuil de décision (sur validation)
+
+  Modèle                  Seuil     AUC  Precision   Recall      F1
+  ────────────────────────────────────────────────────────────
+  GradientBoosting         0.27  0.9913     0.9704   0.9820  0.9762
+  RandomForest             0.28  0.9818     0.8901   0.9701  0.9284
+  KNN                      0.16  0.9548     0.8150   0.9760  0.8883
+  LogisticReg              0.40  0.9105     0.8521   0.8623  0.8571
+
+[ÉTAPE 6/7] Génération des visualisations
+  → Graphe 1/6 : Learning Curves
+     ✓ models/v3_g1_learning_curves.png
+  → Graphe 2/6 : Matrices de Confusion
+     ✓ models/v3_g2_confusion_matrices.png
+  → Graphe 3/6 : Courbes ROC et Precision-Recall
+     ✓ models/v3_g3_roc_pr.png
+  → Graphe 4/6 : Courbes Seuil → Métriques
+     ✓ models/v3_g4_threshold_curves.png
+  → Graphe 5/6 : Comparaison des modèles
+     ✓ models/v3_g5_model_comparison.png
+  → Graphe 6/6 : Importance des features
+     ✓ models/v3_g6_feature_importance.png
+
+[ÉTAPE 7/7] Rapport de synthèse
+
+======================================================================
+  RÉSULTATS DÉTAILLÉS — SET DE TEST
+======================================================================
+
+  ┌─ GradientBoosting ────────────────────────────
+  │  Seuil optimal        : 0.27
+  │  AUC                  : 0.9913
+  │  Accuracy             : 0.9721
+  │  Precision            : 0.9704
+  │  Recall (a_corriger)  : 0.9820
+  │  F1    (a_corriger)   : 0.9762
+  │  Specificity          : 0.9583
+  │  Matrice confusion    : TP=164  FP=5  FN=3  TN=115
+  └──────────────────────────────────────────────────
+
+  Classification Report — GradientBoosting :
+              precision    recall  f1-score   support
+
+     validee     0.9746    0.9583    0.9664       120
+  a_corriger     0.9704    0.9820    0.9762       167
+
+    accuracy                         0.9721       287
+   macro avg     0.9725    0.9702    0.9713       287
+weighted avg     0.9722    0.9721    0.9721       287
+
+
+  ┌─ RandomForest ────────────────────────────────
+  │  Seuil optimal        : 0.28
+  │  AUC                  : 0.9818
+  │  Accuracy             : 0.9129
+  │  Precision            : 0.8901
+  │  Recall (a_corriger)  : 0.9701
+  │  F1    (a_corriger)   : 0.9284
+  │  Specificity          : 0.8333
+  │  Matrice confusion    : TP=162  FP=20  FN=5  TN=100
+  └──────────────────────────────────────────────────
+
+  Classification Report — RandomForest :
+              precision    recall  f1-score   support
+
+     validee     0.9524    0.8333    0.8889       120
+  a_corriger     0.8901    0.9701    0.9284       167
+
+    accuracy                         0.9129       287
+   macro avg     0.9212    0.9017    0.9086       287
+weighted avg     0.9161    0.9129    0.9119       287
+
+
+  ┌─ KNN ─────────────────────────────────────────
+  │  Seuil optimal        : 0.16
+  │  AUC                  : 0.9548
+  │  Accuracy             : 0.8571
+  │  Precision            : 0.8150
+  │  Recall (a_corriger)  : 0.9760
+  │  F1    (a_corriger)   : 0.8883
+  │  Specificity          : 0.6917
+  │  Matrice confusion    : TP=163  FP=37  FN=4  TN=83
+  └──────────────────────────────────────────────────
+
+  Classification Report — KNN :
+              precision    recall  f1-score   support
+
+     validee     0.9540    0.6917    0.8019       120
+  a_corriger     0.8150    0.9760    0.8883       167
+
+    accuracy                         0.8571       287
+   macro avg     0.8845    0.8339    0.8451       287
+weighted avg     0.8731    0.8571    0.8522       287
+
+
+  ┌─ LogisticReg ─────────────────────────────────
+  │  Seuil optimal        : 0.40
+  │  AUC                  : 0.9105
+  │  Accuracy             : 0.8328
+  │  Precision            : 0.8521
+  │  Recall (a_corriger)  : 0.8623
+  │  F1    (a_corriger)   : 0.8571
+  │  Specificity          : 0.7917
+  │  Matrice confusion    : TP=144  FP=25  FN=23  TN=95
+  └──────────────────────────────────────────────────
+
+  Classification Report — LogisticReg :
+              precision    recall  f1-score   support
+
+     validee     0.8051    0.7917    0.7983       120
+  a_corriger     0.8521    0.8623    0.8571       167
+
+    accuracy                         0.8328       287
+   macro avg     0.8286    0.8270    0.8277       287
+weighted avg     0.8324    0.8328    0.8325       287
+
+================================================================================
+  TABLEAU RÉCAPITULATIF
+================================================================================
+  Modèle                   threshold         AUC    Accuracy   Precision      Recall          F1 Specificity
+  ──────────────────────────────────────────────────────────────────────────────
+  GradientBoosting            0.2700      0.9913      0.9721      0.9704      0.9820      0.9762      0.9583
+  RandomForest                0.2800      0.9818      0.9129      0.8901      0.9701      0.9284      0.8333
+  KNN                         0.1600      0.9548      0.8571      0.8150      0.9760      0.8883      0.6917
+  LogisticReg                 0.4000      0.9105      0.8328      0.8521      0.8623      0.8571      0.7917
+  ──────────────────────────────────────────────────────────────────────────────
+  MEILLEUR                          —      0.9913      0.9721      0.9704      0.9820      0.9762      0.9583
+================================================================================
+
+  RECOMMANDATION (score = 0.4×F1 + 0.4×Recall + 0.2×AUC)
+    GradientBoosting       0.9815  ← RECOMMANDÉ
+    RandomForest           0.9557
+    KNN                    0.9367
+    LogisticReg            0.8699
+
+  ➤ Modèle recommandé   : GradientBoosting
+  ➤ Seuil               : 0.27
+  ➤ AUC                 : 0.9913
+  ➤ Recall (a_corriger) : 0.9820
+  ➤ F1    (a_corriger)  : 0.9762
+
+======================================================================
+  IMAGES GÉNÉRÉES
+======================================================================
+  ✓ Learning Curves                     v3_g1_learning_curves.png (142 Ko)
+  ✓ Matrices de Confusion               v3_g2_confusion_matrices.png (134 Ko)
+  ✓ ROC et Précision-Rappel             v3_g3_roc_pr.png (122 Ko)
+  ✓ Seuil → Métriques                   v3_g4_threshold_curves.png (172 Ko)
+  ✓ Comparaison modèles                 v3_g5_model_comparison.png (141 Ko)
+  ✓ Importance features                 v3_g6_feature_importance.png (185 Ko)
