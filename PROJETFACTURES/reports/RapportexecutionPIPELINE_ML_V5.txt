@@ -1,0 +1,198 @@
+======================================================================
+  PIPELINE ML V5 — VÉRIFICATION FACTURES (Contexte notebook exact)
+======================================================================
+
+[ÉTAPE 1/8] Analyse exploratoire — notebook ML_FEATURE.ipynb
+
+  ➤ Lignes: 1433 | validee: 600 (41.9%) | a_corriger: 833 (58.1%)
+
+  Architecture notebook (ML_FEATURE.ipynb):
+    Source: fisprod_acorig.csv + fisprod_valide.csv → concaténés (Cell 4)
+    Troncature: max 600 lignes/catégorie observation (Cell 8)
+    Règles métier: 4 groupes → 34 flags binaires (Cells 25-43)
+    Export dfforml3.csv depuis df (AVANT Cell 47 → brutes encore présentes)
+
+  Analyse variance des 34 flags:
+    ✓ date_entree_is_valid                          dom=0.897  corr=+0.0725
+    ✓ date_sortie_is_valid                          dom=0.897  corr=+0.0742
+    ✓ verifierHopitalisation_PF_Ambulatoires        dom=0.705  corr=+0.0431
+    ✓ verifierPrestationEnfant                      dom=0.881  corr=+0.3114
+    ✓ quantite_total_ex_exists                      dom=0.839  corr=+0.2066
+    ✗ 29 flags MORTS (>97% même valeur) — exclus
+    ✓ 5 flags UTILES avec variance réelle
+
+  Plafonds Bayes Error Rate mesurés:
+    A - Vrai dfforml (flags + catégorielles) : plafond=70.1%  AUC=0.764
+    B - A + FE sur flags                     : plafond=70.5%  AUC=0.767  (+0.3%)
+    C - B + Données brutes du CSV interm.    : plafond=99.9%  AUC=0.997  ← optimal
+
+  → Le FE sur flags seuls n'améliore presque rien (+0.4% plafond)
+    Les données brutes sont indispensables pour lever le plafond à ~100%
+
+[ÉTAPE 2/8] Feature Engineering — Scénario C (flags + FE + brutes)
+  ➤ Total features retenues : 30
+    - Flags utiles          : 5
+    - Catégorielles retenues: 4
+    - Scores synthétiques   : 4
+    - Features brutes/dérivées: 17
+
+[ÉTAPE 3/8] Benchmark comparatif 3 scénarios (5-fold CV)
+
+  Scénario                                                 AUC      F1   Recall
+  ──────────────────────────────────────────────────────────────────────────────
+  A: Vrai dfforml (flags + catégorielles)               0.7644  0.6696   0.5703
+  B: A + FE scores synthétiques sur flags               0.7660  0.6638   0.5402
+  C: B + Données brutes (CSV intermédiaire)             0.9981  0.9892   0.9880 ← RETENU
+
+[ÉTAPE 4/8] Split Train / Validation / Test (60/20/20)
+  ➤ Train      : 859 | a_corriger=499 (58.1%)
+  ➤ Validation : 287 | a_corriger=167 (58.2%)
+  ➤ Test       : 287 | a_corriger=167 (58.2%)
+
+[ÉTAPE 5/8] Entraînement des modèles
+  ✓ GradientBoosting       entraîné sur 859 lignes
+  ✓ RandomForest           entraîné sur 859 lignes
+  ✓ KNN                    entraîné sur 859 lignes
+  ✓ LogisticReg            entraîné sur 859 lignes
+
+[ÉTAPE 6/8] Optimisation seuil (validation)
+
+  Modèle                  Seuil      AUC     Prec   Recall       F1
+  ─────────────────────────────────────────────────────────────────
+  GradientBoosting         0.12   0.9951   0.9819   0.9760   0.9790
+  RandomForest             0.27   0.9857   0.9143   0.9581   0.9357
+  KNN                      0.25   0.9622   0.8624   0.9760   0.9157
+  LogisticReg              0.31   0.9543   0.8626   0.9401   0.8997
+
+[ÉTAPE 7/8] Visualisations
+  → G1: Comparaison 3 scénarios
+     ✓ models/v5_g1_scenarios.png
+  → G2: Learning Curves
+     ✓ models/v5_g2_learning_curves.png
+  → G3: Matrices de Confusion
+     ✓ models/v5_g3_confusion_matrices.png
+  → G4: ROC et PR
+     ✓ models/v5_g4_roc_pr.png
+  → G5: Seuil → Métriques
+     ✓ models/v5_g5_threshold_curves.png
+  → G6: Comparaison modèles
+     ✓ models/v5_g6_model_comparison.png
+  → G7: Importance des features
+     ✓ models/v5_g7_feature_importance.png
+
+[ÉTAPE 8/8] Rapport final
+
+======================================================================
+  RÉSULTATS DÉTAILLÉS — SET DE TEST
+======================================================================
+
+  ┌─ GradientBoosting ────────────────────────────
+  │  Seuil          : 0.12
+  │  AUC            : 0.9951
+  │  Accuracy       : 0.9756
+  │  Precision      : 0.9819
+  │  Recall         : 0.9760
+  │  F1             : 0.9790
+  │  Specificity    : 0.9750
+  │  TP=163  FP=3  FN=4  TN=117
+  └──────────────────────────────────────────────────
+              precision    recall  f1-score   support
+
+     validee     0.9669    0.9750    0.9710       120
+  a_corriger     0.9819    0.9760    0.9790       167
+
+    accuracy                         0.9756       287
+   macro avg     0.9744    0.9755    0.9750       287
+weighted avg     0.9757    0.9756    0.9756       287
+
+
+  ┌─ RandomForest ────────────────────────────────
+  │  Seuil          : 0.27
+  │  AUC            : 0.9857
+  │  Accuracy       : 0.9233
+  │  Precision      : 0.9143
+  │  Recall         : 0.9581
+  │  F1             : 0.9357
+  │  Specificity    : 0.8750
+  │  TP=160  FP=15  FN=7  TN=105
+  └──────────────────────────────────────────────────
+              precision    recall  f1-score   support
+
+     validee     0.9375    0.8750    0.9052       120
+  a_corriger     0.9143    0.9581    0.9357       167
+
+    accuracy                         0.9233       287
+   macro avg     0.9259    0.9165    0.9204       287
+weighted avg     0.9240    0.9233    0.9229       287
+
+
+  ┌─ KNN ─────────────────────────────────────────
+  │  Seuil          : 0.25
+  │  AUC            : 0.9622
+  │  Accuracy       : 0.8955
+  │  Precision      : 0.8624
+  │  Recall         : 0.9760
+  │  F1             : 0.9157
+  │  Specificity    : 0.7833
+  │  TP=163  FP=26  FN=4  TN=94
+  └──────────────────────────────────────────────────
+              precision    recall  f1-score   support
+
+     validee     0.9592    0.7833    0.8624       120
+  a_corriger     0.8624    0.9760    0.9157       167
+
+    accuracy                         0.8955       287
+   macro avg     0.9108    0.8797    0.8891       287
+weighted avg     0.9029    0.8955    0.8934       287
+
+
+  ┌─ LogisticReg ─────────────────────────────────
+  │  Seuil          : 0.31
+  │  AUC            : 0.9543
+  │  Accuracy       : 0.8780
+  │  Precision      : 0.8626
+  │  Recall         : 0.9401
+  │  F1             : 0.8997
+  │  Specificity    : 0.7917
+  │  TP=157  FP=25  FN=10  TN=95
+  └──────────────────────────────────────────────────
+              precision    recall  f1-score   support
+
+     validee     0.9048    0.7917    0.8444       120
+  a_corriger     0.8626    0.9401    0.8997       167
+
+    accuracy                         0.8780       287
+   macro avg     0.8837    0.8659    0.8721       287
+weighted avg     0.8803    0.8780    0.8766       287
+
+================================================================================
+  TABLEAU RÉCAPITULATIF
+================================================================================
+  Modèle                   threshold         AUC    Accuracy   Precision      Recall          F1 Specificity
+  ──────────────────────────────────────────────────────────────────────────────
+  GradientBoosting            0.1200      0.9951      0.9756      0.9819      0.9760      0.9790      0.9750
+  RandomForest                0.2700      0.9857      0.9233      0.9143      0.9581      0.9357      0.8750
+  KNN                         0.2500      0.9622      0.8955      0.8624      0.9760      0.9157      0.7833
+  LogisticReg                 0.3100      0.9543      0.8780      0.8626      0.9401      0.8997      0.7917
+  ──────────────────────────────────────────────────────────────────────────────
+  MEILLEUR                          —      0.9951      0.9756      0.9819      0.9760      0.9790      0.9750
+================================================================================
+
+  RECOMMANDATION (0.4×F1 + 0.4×Recall + 0.2×AUC)
+    GradientBoosting       0.9810  ← RECOMMANDÉ
+    RandomForest           0.9546
+    KNN                    0.9491
+    LogisticReg            0.9268
+
+  ➤ Modèle: GradientBoosting  |  Seuil: 0.12  |  AUC: 0.9951  |  Recall: 0.9760  |  F1: 0.9790
+
+======================================================================
+  IMAGES GÉNÉRÉES
+======================================================================
+  ✓ Comparaison 3 scénarios             v5_g1_scenarios.png (73 Ko)
+  ✓ Learning Curves                     v5_g2_learning_curves.png (120 Ko)
+  ✓ Matrices Confusion                  v5_g3_confusion_matrices.png (124 Ko)
+  ✓ ROC et PR                           v5_g4_roc_pr.png (119 Ko)
+  ✓ Seuil→Métriques                     v5_g5_threshold_curves.png (145 Ko)
+  ✓ Comparaison modèles                 v5_g6_model_comparison.png (133 Ko)
+  ✓ Importance features                 v5_g7_feature_importance.png (217 Ko)
